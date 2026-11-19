@@ -5,6 +5,20 @@ import type { Explanation } from "@/lib/schema";
 
 type Result = { explanation: Explanation; demo?: boolean };
 
+// Stable per-browser ID so the daily per-device limit applies to this test page too.
+function browserId(): string {
+  try {
+    let id = localStorage.getItem("device-id");
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem("device-id", id);
+    }
+    return id;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
+
 export default function Home() {
   const [files, setFiles] = useState<File[]>([]);
   const [question, setQuestion] = useState("");
@@ -22,7 +36,11 @@ export default function Home() {
     files.forEach((f) => body.append("files", f));
     body.append("question", question);
     try {
-      const res = await fetch("/api/explain", { method: "POST", body });
+      const res = await fetch("/api/explain", {
+        method: "POST",
+        body,
+        headers: { "x-device-id": browserId() },
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
       setResult(data);

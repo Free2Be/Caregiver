@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { ExplanationSchema, explanationJsonSchema } from "@/lib/schema";
 import { SYSTEM_PROMPT, userInstruction } from "@/lib/prompt";
 import { SAMPLE_EXPLANATION } from "@/lib/sample";
+import { LIMITS, checkAndCount } from "@/lib/limits";
 
 export const runtime = "nodejs";
 export const maxDuration = 120; // seconds; reading a multi-page PDF can take a while
@@ -10,15 +11,38 @@ export const maxDuration = 120; // seconds; reading a multi-page PDF can take a 
 const MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
 const MAX_FILES = 5;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // API limit per image
-const MAX_PDF_BYTES = 20 * 1024 * 1024;
+const MAX_PDF_BYTES = 10 * 1024 * 1024;
+const MAX_PDF_PAGES = 10; // keeps the cost of one request bounded
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 type ImageType = (typeof IMAGE_TYPES)[number];
+
+const LIMIT_MESSAGES = {
+  device: `You've reached today's limit of ${LIMITS.perDevice} documents. Please come back tomorrow.`,
+  ip: "Too many documents from this network today. Please try again tomorrow.",
+  global: "We've hit our limit for today. Please try again tomorrow.",
+};
 
 function fail(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
 
+// Rough page count: each page object in a PDF has "/Type /Page" (not "/Pages").
+function countPdfPages(buf: Buffer): number {
+  return (buf.toString("latin1").match(/\/Type\s*\/Page(?![a-zA-Z])/g) ?? []).length;
+}
+
+function clientIp(req: Request): string {
+  return req.headers.get("x-forwarded-for")?.split(",")[0].trim() || req.headers.get("x-real-ip") || "unknown";
+}
+
 export async function POST(req: Request) {
+  // Optional shared key baked into the app, so casual visitors can't call the API directly.
+  if (process.env.APP_KEY && req.headers.get("x-app-key") !== process.env.APP_KEY) {
+    return fail("Not allowed.", 401);
+  }
+  const deviceId = (req.headers.get("x-device-id") || "").slice(0, 64);
+  if (!/^[\w-]{8,64}$/.test(deviceId)) return fail("Please update the app and try again.", 400);
+
   let form: FormData;
   try {
     form = await req.formData();
@@ -34,9 +58,13 @@ export async function POST(req: Request) {
 
   const content: Anthropic.Beta.BetaContentBlockParam[] = [];
   for (const file of files) {
-    const data = Buffer.from(await file.arrayBuffer()).toString("base64");
+    const buf = Buffer.from(await file.arrayBuffer());
+    const data = buf.toString("base64");
     if (file.type === "application/pdf") {
-      if (file.size > MAX_PDF_BYTES) return fail(`"${file.name}" is over 20 MB.`);
+      if (file.size > MAX_PDF_BYTES) return fail(`"${file.name}" is over 10 MB.`);
+      if (countPdfPages(buf) > MAX_PDF_PAGES) {
+        return fail(`"${file.name}" has more than ${MAX_PDF_PAGES} pages. Please upload just the pages you need explained.`);
+      }
       content.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data } });
     } else if ((IMAGE_TYPES as readonly string[]).includes(file.type)) {
       if (file.size > MAX_IMAGE_BYTES) return fail(`"${file.name}" is over 5 MB. Try a smaller photo.`);
@@ -51,6 +79,9 @@ export async function POST(req: Request) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ explanation: SAMPLE_EXPLANATION, demo: true });
   }
+
+  const limit = await checkAndCount(deviceId, clientIp(req));
+  if (!limit.ok) return fail(LIMIT_MESSAGES[limit.reason], 429);
 
   const client = new Anthropic();
   try {
