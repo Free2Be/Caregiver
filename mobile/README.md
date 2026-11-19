@@ -22,7 +22,7 @@ The app is built on GitHub's machines (`.github/workflows/android.yml`) and poin
 
 1. On GitHub, open the repo's **Settings → Secrets and variables → Actions**.
 2. Click **New repository secret**.
-3. Name it `EXPO_PUBLIC_APP_KEY` and give it the same value as `APP_KEY` on Vercel.
+3. Name it `APP_KEY` and give it the same value as `APP_KEY` on Vercel. No Expo account is needed.
 
 ### Build
 
