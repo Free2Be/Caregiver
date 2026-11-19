@@ -22,7 +22,7 @@ Follow the steps in the main README. You'll get an address like `https://somethi
 
 ### 2. Point the app at it
 
-In `eas.json`, replace both `https://YOUR-BACKEND.vercel.app` with your backend address. If you set `APP_KEY` on the backend, add the same value as `"EXPO_PUBLIC_APP_KEY"` next to it.
+`eas.json` already points to the live backend. Add the backend's `APP_KEY` on expo.dev under the project's **Environment variables** as `EXPO_PUBLIC_APP_KEY`, for the preview and production environments. Don't put it in `eas.json`, because that file is on GitHub.
 
 ### 3. Build an installable APK in Expo's cloud
 
