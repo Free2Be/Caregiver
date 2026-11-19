@@ -16,17 +16,25 @@ An Expo (React Native) app. It talks to the server in `../backend`, which holds 
 
 ## Try it on your Android phone
 
-### 1. Put the backend online first
+The app is built on GitHub's machines (`.github/workflows/android.yml`) and points at the live backend, `https://caregiver-flame.vercel.app`.
 
-Follow the steps in the main README. You'll get an address like `https://something.vercel.app`.
+### One-time setup
 
-### 2. Point the app at it
+1. On GitHub, open the repo's **Settings → Secrets and variables → Actions**.
+2. Click **New repository secret**.
+3. Name it `EXPO_PUBLIC_APP_KEY` and give it the same value as `APP_KEY` on Vercel.
 
-`eas.json` already points to the live backend. Add the backend's `APP_KEY` on expo.dev under the project's **Environment variables** as `EXPO_PUBLIC_APP_KEY`, for the preview and production environments. Don't put it in `eas.json`, because that file is on GitHub.
+### Build
 
-### 3. Build an installable APK in Expo's cloud
+1. Open the repo's **Actions** tab, choose **Build Android app**, and click **Run workflow**. A build also runs by itself whenever `mobile/` changes.
+2. Wait about 15–25 minutes.
+3. Open the repo's **Releases** page, find the newest **Test build**, and tap the `.apk` on your phone to install it.
 
-No Android Studio is needed. From this folder:
+Android will warn about installing from outside the Play Store. That's expected for a test build.
+
+### Alternative: build with Expo's cloud (EAS)
+
+`eas.json` is also set up. From this folder:
 
 ```bash
 npm install
