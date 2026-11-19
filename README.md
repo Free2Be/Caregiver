@@ -1,59 +1,46 @@
 # Paperwork Explainer
 
-Family caregivers upload a photo or PDF of medical or insurance paperwork and get back:
+An Android app (iPhone later) for family caregivers. Photograph hospital, insurance, or medical paperwork and get:
 
 - a plain-English explanation
-- an urgent-deadline warning when there is one
-- a to-do checklist
-- costs and coverage in plain terms
-- questions to ask the doctor
+- a "Don't miss this" warning for deadlines
+- a to-do list
+- questions for the doctor
 - definitions of confusing terms
 - a draft appeal letter for denials
 
-Files are sent to Claude to be read and are never stored.
-
-Market research behind the idea: [docs/market-research.md](docs/market-research.md)
-
-## Run it on your computer
-
-1. Install [Node.js](https://nodejs.org) 20 or newer.
-2. In this folder, run:
-   ```bash
-   npm install
-   cp .env.example .env.local   # then paste your key into .env.local
-   npm run dev
-   ```
-3. Open http://localhost:3000.
-
-**Demo mode:** without an `ANTHROPIC_API_KEY`, the app runs in demo mode and shows a sample result, so you can try the flow before getting a key. Get a key at https://console.anthropic.com.
-
-## Put it online (free)
-
-1. Sign in at [vercel.com](https://vercel.com) with GitHub.
-2. Click **Add New → Project** and import this repo.
-3. Under **Environment Variables**, add `ANTHROPIC_API_KEY`.
-4. Click **Deploy**. You get a public link in about a minute.
-
-## How it works
-
-| File | What it does |
+| Folder | What it is |
 |---|---|
-| `app/page.tsx` | Upload page and results |
-| `app/api/explain/route.ts` | Sends the files to Claude and checks the answer |
-| `lib/prompt.ts` | Instructions for Claude (tone, safety rules, what to fill in) |
-| `lib/schema.ts` | The exact shape of every answer |
-| `lib/sample.ts` | The sample result used in demo mode |
+| `mobile/` | The Android app (Expo / React Native) |
+| `backend/` | The server: reads the documents with Claude, enforces the usage limits, and keeps the API key off the phone |
+| `docs/market-research.md` | The research behind the idea |
 
-**Model:** the app uses `claude-opus-5-5` by default, at about 5–10 cents per document. To use a cheaper model, set `CLAUDE_MODEL=claude-sonnet-5-5`.
+## Put the backend online (about 15 minutes, free to start)
 
-**Fallback:** if Claude declines a request, a server-side fallback retries it automatically on another model.
+1. **Get an API key.** Go to [console.anthropic.com](https://console.anthropic.com) and create an API key. Add about $5 of credit.
+2. **Set a hard spending cap.** In the same console, under **Settings → Limits**, set a monthly spend limit (for example $20). This is the firm ceiling, whatever happens.
+3. **Import the repo.** Sign in at [vercel.com](https://vercel.com) with GitHub, click **Add New → Project**, import this repo, and set **Root Directory** to `backend`.
+4. **Add environment variables:**
+   - `ANTHROPIC_API_KEY`: your key
+   - `APP_KEY`: any long random text (the app sends this to prove it's your app)
+5. **Deploy**, and copy the address it gives you.
+6. **Turn on shared limits.** In the Vercel project, open **Storage → Upstash (Redis)** and create the free database. This makes the daily limits hold across all servers. Then click **Redeploy**.
 
-## Not built yet
+Then build the app: see [mobile/README.md](mobile/README.md).
 
-- [ ] Free limit (3 documents a month) and paid plan
-- [ ] Share link for family members
-- [ ] Usage analytics
+## Cost protection
+
+| Protection | Default | Change it with |
+|---|---|---|
+| Documents per phone per day | 5 | `LIMIT_PER_DEVICE_PER_DAY` |
+| Documents per network per day | 15 | `LIMIT_PER_IP_PER_DAY` |
+| Documents for the whole app per day | 200 (about $10–20) | `LIMIT_GLOBAL_PER_DAY` |
+| Pages per request | 5 photos or a 10-page PDF | in code |
+| Requests without the app key | blocked | `APP_KEY` |
+| Monthly spend ceiling | set in the Anthropic console | console.anthropic.com |
+
+Without an API key, the backend runs in **demo mode** and returns a sample result for free.
 
 ---
 
-This tool explains paperwork. It is not medical, legal, or financial advice.
+This app explains paperwork. It is not medical, legal, or financial advice.

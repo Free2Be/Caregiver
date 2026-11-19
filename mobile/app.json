@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Paperwork Explainer",
+    "slug": "paperwork-explainer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#2F6F62",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "app.paperworkexplainer"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single"
+    },
+    "scheme": "paperworkexplainer",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow Paperwork Explainer to use your camera to photograph medical paperwork.",
+          "photosPermission": "Allow Paperwork Explainer to open photos of your paperwork.",
+          "microphonePermission": false
+        }
+      ]
+    ]
+  }
+}
