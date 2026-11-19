@@ -11,7 +11,7 @@ export const maxDuration = 120; // seconds; reading a multi-page PDF can take a 
 const MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
 const MAX_FILES = 5;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // API limit per image
-const MAX_PDF_BYTES = 10 * 1024 * 1024;
+const MAX_PDF_BYTES = 4 * 1024 * 1024; // the host rejects request bodies over ~4.5 MB
 const MAX_PDF_PAGES = 10; // keeps the cost of one request bounded
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 type ImageType = (typeof IMAGE_TYPES)[number];
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
     const buf = Buffer.from(await file.arrayBuffer());
     const data = buf.toString("base64");
     if (file.type === "application/pdf") {
-      if (file.size > MAX_PDF_BYTES) return fail(`"${file.name}" is over 10 MB.`);
+      if (file.size > MAX_PDF_BYTES) return fail(`"${file.name}" is over 4 MB. Try photos of the pages instead.`);
       if (countPdfPages(buf) > MAX_PDF_PAGES) {
         return fail(`"${file.name}" has more than ${MAX_PDF_PAGES} pages. Please upload just the pages you need explained.`);
       }

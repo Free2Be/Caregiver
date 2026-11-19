@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 import { explain } from "@/lib/api";
-import { MAX_PAGES, choosePdf, choosePhotos, takePhoto } from "@/lib/pages";
+import { MAX_PAGES, PageError, choosePdf, choosePhotos, takePhoto } from "@/lib/pages";
 import { useResult } from "@/lib/result-context";
 import { useColors } from "@/lib/theme";
 import type { Page } from "@/lib/types";
@@ -39,8 +39,8 @@ export default function Home() {
       }
       if (added.length > room) setError(`You can add up to ${MAX_PAGES} pages at a time.`);
       setPages((p) => [...p, ...added].slice(0, MAX_PAGES));
-    } catch {
-      setError("Couldn't add that page. Please try again.");
+    } catch (e) {
+      setError(e instanceof PageError ? e.message : "Couldn't add that page. Please try again.");
     } finally {
       setBusy("");
     }

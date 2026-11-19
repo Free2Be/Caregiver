@@ -42,7 +42,16 @@ export async function explain(pages: Page[], question: string): Promise<ExplainR
       headers: { "x-device-id": await deviceId(), ...(APP_KEY ? { "x-app-key": APP_KEY } : {}) },
     });
   } catch {
-    throw new Error("Couldn't connect. Check your internet connection and try again.");
+    // Tell "no internet" apart from "the upload itself failed".
+    const online = await fetch(`${API_URL}/api/health`).then((r) => r.ok, () => false);
+    throw new Error(
+      online
+        ? "The upload didn't go through. The pages may be too large: try fewer pages, or photos instead of a PDF."
+        : "Couldn't connect. Check your internet connection and try again.",
+    );
+  }
+  if (res.status === 413) {
+    throw new Error("Those pages are too large to send. Try fewer pages, or photos instead of a PDF.");
   }
 
   let data: { error?: string } & Partial<ExplainResult>;
