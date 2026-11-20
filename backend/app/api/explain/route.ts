@@ -92,7 +92,11 @@ export async function POST(req: Request) {
   const limit = await checkAndCount(deviceId, clientIp(req));
   if (!limit.ok) return fail(LIMIT_MESSAGES[limit.reason], 429);
 
-  const client = new Anthropic();
+  // Keys not tied to a workspace need the workspace named on every request.
+  const workspaceId = process.env.ANTHROPIC_WORKSPACE_ID?.trim();
+  const client = new Anthropic(
+    workspaceId ? { defaultHeaders: { "anthropic-workspace-id": workspaceId } } : {},
+  );
   try {
     const response = await client.beta.messages.create({
       model: MODEL,
