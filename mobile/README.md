@@ -4,14 +4,20 @@ An Expo (React Native) app. It talks to the server in `../backend`, which holds 
 
 ## What's in the app
 
-- **Adding pages:** take photos, choose photos, or choose a PDF, up to 5 pages. Photos are shrunk to JPEG on the phone before upload.
-- **Optional question:** an extra question can be sent along with the pages.
-- **Results screen:**
-  - summary and "Don't miss this" warning
-  - tickable to-do list
-  - costs, doctor questions, and plain-English terms
-  - draft appeal letter with a copy button
-- **Share with family:** sends a text version through SMS, WhatsApp, email, or any other app.
+- **Explain tab**
+  - Add pages: take photos, choose photos, or choose a PDF, up to 5 pages. Photos are shrunk to JPEG on the phone before upload.
+  - Ask an optional question.
+  - Pages you've added and your question are kept if you leave the app.
+- **Explanation screen**
+  - Summary and "Don't miss this" warning.
+  - Tickable to-do list with due dates and **Add to calendar**, which opens the phone's calendar with the event filled in.
+  - Costs, doctor questions, and plain-English terms.
+  - Draft appeal letter with a copy button.
+  - **Share with family**.
+  - Delete.
+- **Saved tab:** every explanation, saved automatically on the phone only.
+- **To-dos tab:** every to-do from every document, soonest due date first, with a badge showing how many are open.
+- **About tab:** privacy, a medical disclaimer, and **Delete everything**.
 - **Look:** follows the phone's light or dark mode.
 
 ## Try it on your Android phone

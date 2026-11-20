@@ -82,7 +82,7 @@ export async function POST(req: Request) {
       return fail(`"${file.name}" isn't a supported file. Use a JPG, PNG, or PDF.`);
     }
   }
-  content.push({ type: "text", text: userInstruction(question) });
+  content.push({ type: "text", text: userInstruction(question, new Date().toISOString().slice(0, 10)) });
 
   // No key configured: return a sample so the page can be tried end to end.
   if (!process.env.ANTHROPIC_API_KEY) {

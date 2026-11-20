@@ -1,8 +1,10 @@
 import * as Clipboard from "expo-clipboard";
-import { router } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
-import { useResult } from "@/lib/result-context";
+import { Alert, Platform, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { StepRow } from "@/components/StepRow";
+import { formatSaved } from "@/lib/dates";
+import { useStore } from "@/lib/store";
 import { useColors } from "@/lib/theme";
 import type { Explanation } from "@/lib/types";
 import { Body, Button, Card, Heading } from "@/lib/ui";
@@ -24,54 +26,54 @@ function asText(x: Explanation): string {
   return lines.join("\n");
 }
 
-export default function Result() {
+export default function DocScreen() {
   const c = useColors();
-  const { result } = useResult();
-  const [done, setDone] = useState<Set<number>>(new Set());
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { docs, loaded, toggleStep, removeDoc } = useStore();
   const [copied, setCopied] = useState(false);
+  const doc = docs.find((d) => d.id === id);
 
-  if (!result) {
+  if (!doc) {
     return (
       <View style={styles.screen}>
-        <Body>Nothing to show yet.</Body>
+        <Body>{loaded ? "This explanation was deleted." : "Loading…"}</Body>
         <View style={styles.space} />
-        <Button title="Go back" onPress={() => router.back()} />
+        <Button title="Go to Saved" onPress={() => router.navigate("/saved")} />
       </View>
     );
   }
 
-  const x = result.explanation;
+  const x = doc.explanation;
 
-  if (!x.readable) {
-    return (
-      <ScrollView contentContainerStyle={styles.screen}>
-        <Card>
-          <Heading>We couldn't read this</Heading>
-          <Body>{x.summary}</Body>
-        </Card>
-        <Button title="Try another photo" onPress={() => router.back()} />
-      </ScrollView>
-    );
+  function confirmDelete() {
+    const remove = () => {
+      removeDoc(doc!.id);
+      router.back();
+    };
+    if (Platform.OS === "web") {
+      if (globalThis.confirm?.("Delete this explanation from your phone?")) remove();
+      return;
+    }
+    Alert.alert("Delete this explanation?", "It will be removed from this phone, along with its to-dos.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: remove },
+    ]);
   }
-
-  const toggle = (i: number) =>
-    setDone((s) => {
-      const next = new Set(s);
-      if (next.has(i)) next.delete(i);
-      else next.add(i);
-      return next;
-    });
 
   return (
     <ScrollView contentContainerStyle={styles.screen}>
-      {result.demo && (
+      <Stack.Screen options={{ title: doc.title }} />
+
+      {doc.demo && (
         <Card urgent>
-          <Body style={styles.small}>Demo mode: the server has no API key, so this is a sample, not your document.</Body>
+          <Body style={styles.small}>Demo mode: the server had no API key, so this is a sample, not your document.</Body>
         </Card>
       )}
 
       <Card>
-        <Text style={[styles.eyebrow, { color: c.accent }]}>{x.document_type.toUpperCase()}</Text>
+        <Text style={[styles.eyebrow, { color: c.accent }]}>
+          {x.document_type.toUpperCase()} · SAVED {formatSaved(doc.savedAt).toUpperCase()}
+        </Text>
         <Heading>What this means</Heading>
         <Body>{x.summary}</Body>
       </Card>
@@ -87,26 +89,7 @@ export default function Result() {
         <Card>
           <Heading>What to do next</Heading>
           {x.next_steps.map((s, i) => (
-            <Pressable
-              key={i}
-              onPress={() => toggle(i)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: done.has(i) }}
-              style={[styles.step, i > 0 && { borderTopWidth: 1, borderTopColor: c.border }]}
-            >
-              <View style={[styles.box, { borderColor: c.accent, backgroundColor: done.has(i) ? c.accent : "transparent" }]}>
-                {done.has(i) && <Text style={{ color: c.accentText, fontWeight: "700" }}>✓</Text>}
-              </View>
-              <View style={styles.flex}>
-                <Body style={[styles.bold, done.has(i) && styles.strike]}>{s.action}</Body>
-                {!!s.deadline && (
-                  <Text style={[styles.deadline, { backgroundColor: c.urgentBg, borderColor: c.urgentBorder, color: c.text }]}>
-                    {s.deadline}
-                  </Text>
-                )}
-                <Body muted>{s.why}</Body>
-              </View>
-            </Pressable>
+            <StepRow key={i} step={s} done={doc.done.includes(i)} onToggle={() => toggleStep(doc.id, i)} divider={i > 0} />
           ))}
         </Card>
       )}
@@ -161,12 +144,13 @@ export default function Result() {
 
       <View style={styles.gap}>
         <Button title="Share with family" onPress={() => Share.share({ message: asText(x) })} />
-        <Button title="Explain another document" variant="secondary" onPress={() => router.back()} />
+        <Button title="Explain another document" variant="secondary" onPress={() => router.navigate("/")} />
+        <Button title="Delete" variant="secondary" onPress={confirmDelete} />
       </View>
 
       <Body muted style={[styles.small, styles.footer]}>
-        This explains paperwork; it is not medical, legal, or financial advice. Check with the care team before
-        making decisions. In an emergency, call 911.
+        This explains paperwork; it is not medical, legal, or financial advice. Check with the care team before making
+        decisions. In an emergency, call 911.
       </Body>
     </ScrollView>
   );
@@ -177,32 +161,10 @@ const styles = StyleSheet.create({
   space: { height: 12 },
   small: { fontSize: 13 },
   eyebrow: { fontSize: 12, fontWeight: "800", letterSpacing: 0.5, marginBottom: 4 },
-  step: { flexDirection: "row", gap: 12, paddingVertical: 10 },
-  box: { width: 24, height: 24, borderWidth: 2, borderRadius: 6, alignItems: "center", justifyContent: "center", marginTop: 2 },
-  flex: { flex: 1 },
   bold: { fontWeight: "700" },
-  strike: { textDecorationLine: "line-through", opacity: 0.6 },
-  deadline: {
-    alignSelf: "flex-start",
-    fontSize: 12,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 1,
-    marginVertical: 4,
-    overflow: "hidden",
-  },
   bullet: { marginBottom: 6 },
   term: { paddingVertical: 8 },
-  letter: {
-    fontFamily: "monospace",
-    fontSize: 14,
-    lineHeight: 20,
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-    marginVertical: 10,
-  },
+  letter: { fontFamily: "monospace", fontSize: 14, lineHeight: 20, borderWidth: 1, borderRadius: 10, padding: 12, marginVertical: 10 },
   gap: { gap: 10, marginTop: 4 },
   footer: { textAlign: "center", marginTop: 28 },
 });

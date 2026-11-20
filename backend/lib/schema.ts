@@ -9,7 +9,7 @@ export const ExplanationSchema = z.object({
   summary: z.string(),
   terms_explained: z.array(z.object({ term: z.string(), meaning: z.string() })),
   next_steps: z.array(
-    z.object({ action: z.string(), deadline: z.string(), why: z.string() }),
+    z.object({ action: z.string(), deadline: z.string(), due_date: z.string(), why: z.string() }),
   ),
   questions_for_doctor: z.array(z.string()),
   costs_and_coverage: z.string(),
@@ -55,8 +55,8 @@ export const explanationJsonSchema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["action", "deadline", "why"],
-        properties: { action: str, deadline: str, why: str },
+        required: ["action", "deadline", "due_date", "why"],
+        properties: { action: str, deadline: str, due_date: str, why: str },
       },
     },
     questions_for_doctor: { type: "array", items: str },

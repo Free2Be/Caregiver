@@ -1,28 +1,18 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { explain } from "@/lib/api";
 import { MAX_PAGES, PageError, choosePdf, choosePhotos, takePhoto } from "@/lib/pages";
-import { useResult } from "@/lib/result-context";
+import { useStore } from "@/lib/store";
 import { useColors } from "@/lib/theme";
 import type { Page } from "@/lib/types";
 import { Body, Button, Card, Heading } from "@/lib/ui";
 
-export default function Home() {
+export default function Explain() {
   const c = useColors();
-  const { setResult } = useResult();
-  const [pages, setPages] = useState<Page[]>([]);
-  const [question, setQuestion] = useState("");
+  // Pages and question are kept in the store, so they survive leaving the app.
+  const { draft, setDraft, saveResult } = useStore();
+  const { pages, question } = draft;
   const [busy, setBusy] = useState<"" | "adding" | "explaining">("");
   const [error, setError] = useState("");
 
@@ -38,7 +28,7 @@ export default function Home() {
         return;
       }
       if (added.length > room) setError(`You can add up to ${MAX_PAGES} pages at a time.`);
-      setPages((p) => [...p, ...added].slice(0, MAX_PAGES));
+      setDraft({ pages: [...pages, ...added].slice(0, MAX_PAGES), question });
     } catch (e) {
       setError(e instanceof PageError ? e.message : "Couldn't add that page. Please try again.");
     } finally {
@@ -51,10 +41,15 @@ export default function Home() {
     setError("");
     setBusy("explaining");
     try {
-      setResult(await explain(pages, question));
-      router.push("/result");
-      setPages([]);
-      setQuestion("");
+      const result = await explain(pages, question);
+      // An unreadable photo isn't worth saving; keep the pages so they can be retaken.
+      if (!result.explanation.readable) {
+        setError(`We couldn't read this. ${result.explanation.summary}`);
+        return;
+      }
+      const id = saveResult(result);
+      setDraft({ pages: [], question: "" });
+      router.push(`/doc/${id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     } finally {
@@ -65,8 +60,8 @@ export default function Home() {
   return (
     <ScrollView contentContainerStyle={styles.screen} keyboardShouldPersistTaps="handled">
       <Body muted style={styles.intro}>
-        Hospital discharge papers, insurance letters, denials, lab results. Get a plain-English explanation, a
-        to-do list, and questions to ask the doctor.
+        Hospital discharge papers, insurance letters, denials, lab results. Get a plain-English explanation, a to-do
+        list, and questions to ask the doctor. Every explanation is saved on this phone.
       </Body>
 
       <Card>
@@ -97,7 +92,7 @@ export default function Home() {
                 )}
                 <Pressable
                   accessibilityLabel={`Remove page ${i + 1}`}
-                  onPress={() => setPages((all) => all.filter((x) => x.uri !== p.uri))}
+                  onPress={() => setDraft({ pages: pages.filter((x) => x.uri !== p.uri), question })}
                   style={[styles.remove, { backgroundColor: c.text }]}
                   hitSlop={8}
                 >
@@ -116,7 +111,7 @@ export default function Home() {
         <Heading>2. Anything specific? (optional)</Heading>
         <TextInput
           value={question}
-          onChangeText={setQuestion}
+          onChangeText={(q) => setDraft({ pages, question: q })}
           maxLength={500}
           multiline
           placeholder="e.g. Do we have to pay this?"
@@ -141,7 +136,7 @@ export default function Home() {
       {!!error && <Text style={[styles.error, { color: c.error }]}>{error}</Text>}
 
       <Body muted style={[styles.small, styles.footer]}>
-        Your pages are sent securely to be read and are not saved. This app explains paperwork; it is not
+        Your pages are sent securely to be read and are not kept on our server. This app explains paperwork; it is not
         medical, legal, or financial advice. In an emergency, call 911.
       </Body>
     </ScrollView>
@@ -157,16 +152,7 @@ const styles = StyleSheet.create({
   thumb: { width: 92, height: 120, borderWidth: 1, borderRadius: 10, overflow: "hidden", justifyContent: "center" },
   thumbImage: { width: "100%", height: "100%" },
   pdf: { fontSize: 12, textAlign: "center", padding: 6 },
-  remove: {
-    position: "absolute",
-    top: 4,
-    right: 4,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  remove: { position: "absolute", top: 4, right: 4, width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   small: { fontSize: 13, marginTop: 10 },
   input: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 16, minHeight: 64, textAlignVertical: "top" },
   waiting: { alignItems: "center", marginTop: 12 },

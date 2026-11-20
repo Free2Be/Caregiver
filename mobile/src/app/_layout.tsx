@@ -1,12 +1,12 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { ResultProvider } from "@/lib/result-context";
+import { StoreProvider } from "@/lib/store";
 import { useColors } from "@/lib/theme";
 
 export default function RootLayout() {
   const c = useColors();
   return (
-    <ResultProvider>
+    <StoreProvider>
       <StatusBar style="auto" />
       <Stack
         screenOptions={{
@@ -16,9 +16,9 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: c.bg },
         }}
       >
-        <Stack.Screen name="index" options={{ title: "Paperwork Explainer" }} />
-        <Stack.Screen name="result" options={{ title: "Explanation" }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="doc/[id]" options={{ title: "Explanation" }} />
       </Stack>
-    </ResultProvider>
+    </StoreProvider>
   );
 }

@@ -28,7 +28,12 @@ async function appendPage(form: FormData, page: Page) {
     // Expo's fetch doesn't accept React Native's { uri } file parts. It takes an
     // object with a name, a type, and a bytes() reader, and sends those as the
     // part's filename, content type, and contents.
-    const bytes = new Uint8Array(await new File(page.uri).arrayBuffer());
+    let bytes: Uint8Array;
+    try {
+      bytes = new Uint8Array(await new File(page.uri).arrayBuffer());
+    } catch {
+      throw new Error(`"${page.name}" is no longer on this phone. Remove it (✕) and add it again.`);
+    }
     const part = { name: page.name, type: page.mimeType, bytes: async () => bytes };
     form.append("files", part as unknown as Blob);
   }

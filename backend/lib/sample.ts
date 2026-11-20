@@ -27,16 +27,19 @@ export const SAMPLE_EXPLANATION: Explanation = {
     {
       action: "Ask the doctor for a letter explaining why skilled nursing was needed",
       deadline: "This week",
+      due_date: "",
       why: "A doctor's letter is the strongest evidence in an appeal.",
     },
     {
       action: "Send the appeal letter below with the doctor's letter",
       deadline: "Within 60 days of the letter date",
+      due_date: "2026-05-02",
       why: "Late appeals are usually rejected automatically.",
     },
     {
       action: "Don't pay the facility bill until the appeal is decided",
       deadline: "",
+      due_date: "",
       why: "Ask the facility to hold the bill while the appeal is pending.",
     },
   ],
