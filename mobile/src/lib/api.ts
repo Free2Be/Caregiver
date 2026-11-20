@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { File } from "expo-file-system";
 import * as Crypto from "expo-crypto";
 import { Platform } from "react-native";
 import type { ExplainResult, Page } from "./types";
@@ -24,8 +25,12 @@ async function appendPage(form: FormData, page: Page) {
     const blob = await (await fetch(page.uri)).blob();
     form.append("files", blob, page.name);
   } else {
-    // React Native's FormData accepts a file reference by URI.
-    form.append("files", { uri: page.uri, name: page.name, type: page.mimeType } as unknown as Blob);
+    // Expo's fetch doesn't accept React Native's { uri } file parts. It takes an
+    // object with a name, a type, and a bytes() reader, and sends those as the
+    // part's filename, content type, and contents.
+    const bytes = new Uint8Array(await new File(page.uri).arrayBuffer());
+    const part = { name: page.name, type: page.mimeType, bytes: async () => bytes };
+    form.append("files", part as unknown as Blob);
   }
 }
 
