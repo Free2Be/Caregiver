@@ -61,6 +61,14 @@ export async function POST(req: Request) {
   for (const file of files) {
     const buf = Buffer.from(await file.arrayBuffer());
     const data = buf.toString("base64");
+    // Catch files that were damaged on the way, which Claude would reject anyway.
+    const intact =
+      file.type === "application/pdf"
+        ? buf.subarray(0, 5).toString("latin1") === "%PDF-"
+        : file.type === "image/jpeg"
+          ? buf[0] === 0xff && buf[1] === 0xd8
+          : true;
+    if (!intact) return fail(`"${file.name}" arrived damaged (${buf.length} bytes). Please try again.`);
     if (file.type === "application/pdf") {
       if (file.size > MAX_PDF_BYTES) return fail(`"${file.name}" is over 4 MB. Try photos of the pages instead.`);
       if (countPdfPages(buf) > MAX_PDF_PAGES) {
@@ -122,7 +130,9 @@ export async function POST(req: Request) {
     }
     if (error instanceof Anthropic.BadRequestError) {
       console.error("Bad request to Claude", error.message);
-      return fail("We couldn't read that file. Try a clearer photo or a different PDF.", 400);
+      // Claude's own reason, e.g. a problem with the image or the request. Contains no secrets.
+      const reason = (error.error as { error?: { message?: string } } | undefined)?.error?.message || error.message;
+      return fail(`We couldn't read that file. Try a clearer photo or a different PDF. (${reason})`, 400);
     }
     if (error instanceof Anthropic.APIError) {
       console.error(`Claude API error ${error.status}`, error.message);
