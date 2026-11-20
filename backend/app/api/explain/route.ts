@@ -37,7 +37,8 @@ function clientIp(req: Request): string {
 
 export async function POST(req: Request) {
   // Optional shared key baked into the app, so casual visitors can't call the API directly.
-  if (process.env.APP_KEY && req.headers.get("x-app-key") !== process.env.APP_KEY) {
+  const appKey = process.env.APP_KEY?.trim();
+  if (appKey && req.headers.get("x-app-key")?.trim() !== appKey) {
     return fail("Not allowed.", 401);
   }
   const deviceId = (req.headers.get("x-device-id") || "").slice(0, 64);

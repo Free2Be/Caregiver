@@ -48,6 +48,10 @@ jobs:
             echo "::error::Add the APP_KEY secret (same value as APP_KEY on Vercel) under Settings > Secrets and variables > Actions."
             exit 1
           fi
+          if ! printf '%s' "$EXPO_PUBLIC_APP_KEY" | grep -qE '^[A-Za-z0-9_-]+$'; then
+            echo "::error::The APP_KEY secret contains spaces, line breaks, or symbols the app can't send. Change APP_KEY to letters and numbers only, in both GitHub and Vercel, then redeploy Vercel and run this again."
+            exit 1
+          fi
 
       - name: Install
         run: npm ci

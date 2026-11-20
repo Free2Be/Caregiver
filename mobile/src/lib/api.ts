@@ -5,7 +5,7 @@ import type { ExplainResult, Page } from "./types";
 
 // Set these when building: see mobile/README.md.
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000").replace(/\/$/, "");
-const APP_KEY = process.env.EXPO_PUBLIC_APP_KEY || "";
+const APP_KEY = (process.env.EXPO_PUBLIC_APP_KEY || "").trim();
 
 const DEVICE_ID_KEY = "device-id";
 
@@ -34,6 +34,12 @@ export async function explain(pages: Page[], question: string): Promise<ExplainR
   for (const page of pages) await appendPage(form, page);
   form.append("question", question);
 
+  // Android refuses to send a header containing emoji, curly quotes and the like,
+  // which looks like a connection failure. Say so plainly instead.
+  if (!/^[\x21-\x7e]*$/.test(APP_KEY)) {
+    throw new Error("This build's app key has unsupported characters. Use only letters and numbers for APP_KEY, then rebuild.");
+  }
+
   let res: Response;
   try {
     res = await fetch(`${API_URL}/api/explain`, {
@@ -41,13 +47,14 @@ export async function explain(pages: Page[], question: string): Promise<ExplainR
       body: form,
       headers: { "x-device-id": await deviceId(), ...(APP_KEY ? { "x-app-key": APP_KEY } : {}) },
     });
-  } catch {
+  } catch (e) {
+    const detail = e instanceof Error ? ` (${e.message})` : "";
     // Tell "no internet" apart from "the upload itself failed".
     const online = await fetch(`${API_URL}/api/health`).then((r) => r.ok, () => false);
     throw new Error(
       online
-        ? "The upload didn't go through. The pages may be too large: try fewer pages, or photos instead of a PDF."
-        : "Couldn't connect. Check your internet connection and try again.",
+        ? `The upload didn't go through. The pages may be too large: try fewer pages, or photos instead of a PDF.${detail}`
+        : `Couldn't connect. Check your internet connection and try again.${detail}`,
     );
   }
   if (res.status === 413) {
