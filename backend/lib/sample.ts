@@ -1,4 +1,4 @@
-import type { Explanation } from "./schema";
+import type { Explanation, MedLabel } from "./schema";
 
 // Shown when no ANTHROPIC_API_KEY is configured, so the page can be tried
 // end to end without an account.
@@ -74,4 +74,28 @@ Sincerely,
 [Relationship to patient]
 
 Enclosures: Denial letter, physician letter`,
+  medications: [
+    { name: "Metoprolol (sample)", dose: "25 mg", instructions: "Take 1 tablet by mouth twice daily", change: "new" },
+  ],
+  appointments: [
+    { title: "Follow-up with primary care (sample)", date: "", time: "", location: "", notes: "Call to schedule within 2 weeks" },
+  ],
+};
+
+export const SAMPLE_MED_LABEL: MedLabel = {
+  readable: true,
+  name: "Metoprolol tartrate (sample)",
+  strength: "25 mg",
+  dose: "1 tablet",
+  instructions: "Take 1 tablet by mouth twice daily with food",
+  times_per_day: 2,
+  as_needed: false,
+  bedtime: false,
+  with_food: "With food",
+  purpose: "",
+  prescriber: "Dr. Sample",
+  pharmacy: "Sample Pharmacy",
+  rx_number: "",
+  refills: "2",
+  warnings: ["May cause dizziness"],
 };

@@ -17,7 +17,11 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "app.paperworkexplainer"
+      "package": "app.paperworkexplainer",
+      "blockedPermissions": [
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -32,6 +36,12 @@
           "cameraPermission": "Allow Paperwork Explainer to use your camera to photograph medical paperwork.",
           "photosPermission": "Allow Paperwork Explainer to open photos of your paperwork.",
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#2F6F62"
         }
       ]
     ]

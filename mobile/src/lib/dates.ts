@@ -33,3 +33,26 @@ export function dueLabel(day?: string): string {
 export function formatSaved(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
+
+// Local calendar day as "YYYY-MM-DD".
+export function dayKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+export const todayKey = () => dayKey(new Date());
+
+export function addDays(day: string, n: number): string {
+  const d = parseDay(day) ?? new Date();
+  d.setDate(d.getDate() + n);
+  return dayKey(d);
+}
+
+// Usual dose times for "N times a day". The person can change them.
+export function defaultTimes(timesPerDay: number, bedtime: boolean): string[] {
+  if (bedtime) return ["21:00"];
+  return (
+    { 1: ["08:00"], 2: ["08:00", "20:00"], 3: ["08:00", "14:00", "20:00"], 4: ["08:00", "12:00", "16:00", "20:00"] }[
+      timesPerDay
+    ] ?? []
+  );
+}

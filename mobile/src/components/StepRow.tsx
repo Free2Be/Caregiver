@@ -67,7 +67,7 @@ export function StepRow({
           >
             <Ionicons name="calendar-outline" size={16} color={c.accent} />
             <Text style={[styles.calendarText, { color: c.accent }]}>
-              {step.due_date ? "Add to calendar" : "Add to calendar (pick a date)"}
+              {step.due_date ? "Add to phone calendar" : "Add to phone calendar (pick a date)"}
             </Text>
           </Pressable>
         )}

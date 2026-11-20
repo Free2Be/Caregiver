@@ -1,161 +1,123 @@
 import { router } from "expo-router";
-import { useState } from "react";
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { explain } from "@/lib/api";
-import { MAX_PAGES, PageError, choosePdf, choosePhotos, takePhoto } from "@/lib/pages";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { AppointmentRow } from "@/components/AppointmentRow";
+import { DoseRow } from "@/components/DoseRow";
+import { StepRow } from "@/components/StepRow";
+import { allTodos, byDueDate, dosesForDay, missedDoses } from "@/lib/agenda";
+import { addDays, daysUntil, todayKey } from "@/lib/dates";
 import { useStore } from "@/lib/store";
 import { useColors } from "@/lib/theme";
-import type { Page } from "@/lib/types";
 import { Body, Button, Card, Heading } from "@/lib/ui";
 
-export default function Explain() {
+// The home screen: today's medicines and what's coming up this week.
+export default function Today() {
   const c = useColors();
-  // Pages and question are kept in the store, so they survive leaving the app.
-  const { draft, setDraft, saveResult } = useStore();
-  const { pages, question } = draft;
-  const [busy, setBusy] = useState<"" | "adding" | "explaining">("");
-  const [error, setError] = useState("");
+  const { meds, doses, appts, docs, toggleStep, loaded } = useStore();
+  const today = todayKey();
+  const weekEnd = addDays(today, 7);
 
-  const room = MAX_PAGES - pages.length;
+  const todaysDoses = dosesForDay(meds, doses, today);
+  const missed = new Set(missedDoses(todaysDoses));
+  const taken = todaysDoses.filter((d) => d.status === "taken").length;
 
-  async function add(source: () => Promise<Page[] | "denied">) {
-    setError("");
-    setBusy("adding");
-    try {
-      const added = await source();
-      if (added === "denied") {
-        Alert.alert("Camera access needed", "Allow camera access in your phone's Settings to take photos of paperwork.");
-        return;
-      }
-      if (added.length > room) setError(`You can add up to ${MAX_PAGES} pages at a time.`);
-      setDraft({ pages: [...pages, ...added].slice(0, MAX_PAGES), question });
-    } catch (e) {
-      setError(e instanceof PageError ? e.message : "Couldn't add that page. Please try again.");
-    } finally {
-      setBusy("");
-    }
-  }
+  const upcomingAppts = appts
+    .filter((a) => a.date >= today && a.date <= weekEnd)
+    .sort((a, b) => (a.date + (a.time || "99")).localeCompare(b.date + (b.time || "99")));
+  const openTodos = allTodos(docs).filter((t) => !t.done);
+  const dueSoon = openTodos.filter((t) => {
+    const n = daysUntil(t.step.due_date);
+    return n !== null && n <= 7;
+  }).sort(byDueDate);
 
-  async function submit() {
-    if (pages.length === 0) return setError("Add a photo or PDF of the paperwork first.");
-    setError("");
-    setBusy("explaining");
-    try {
-      const result = await explain(pages, question);
-      // An unreadable photo isn't worth saving; keep the pages so they can be retaken.
-      if (!result.explanation.readable) {
-        setError(`We couldn't read this. ${result.explanation.summary}`);
-        return;
-      }
-      const id = saveResult(result);
-      setDraft({ pages: [], question: "" });
-      router.push(`/doc/${id}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
-    } finally {
-      setBusy("");
-    }
-  }
+  const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  const empty = loaded && meds.length === 0 && appts.length === 0 && docs.length === 0;
 
   return (
-    <ScrollView contentContainerStyle={styles.screen} keyboardShouldPersistTaps="handled">
-      <Body muted style={styles.intro}>
-        Hospital discharge papers, insurance letters, denials, lab results. Get a plain-English explanation, a to-do
-        list, and questions to ask the doctor. Every explanation is saved on this phone.
-      </Body>
+    <ScrollView contentContainerStyle={styles.screen}>
+      <Text style={[styles.date, { color: c.muted }]}>{dateLabel}</Text>
 
-      <Card>
-        <Heading>1. Add the paperwork</Heading>
-        <View style={styles.gap}>
-          <Button title="📷  Take a photo" onPress={() => add(takePhoto)} disabled={!!busy || room === 0} />
-          <Button
-            title="🖼️  Choose photos"
-            variant="secondary"
-            onPress={() => add(() => choosePhotos(room))}
-            disabled={!!busy || room === 0}
-          />
-          <Button title="📄  Choose a PDF" variant="secondary" onPress={() => add(choosePdf)} disabled={!!busy || room === 0} />
-        </View>
-        {busy === "adding" && <ActivityIndicator style={styles.spinner} color={c.accent} />}
-
-        {pages.length > 0 && (
-          <View style={styles.pages}>
-            {pages.map((p, i) => (
-              <View key={p.uri} style={[styles.thumb, { borderColor: c.border, backgroundColor: c.bg }]}>
-                {p.mimeType === "application/pdf" ? (
-                  <Text style={[styles.pdf, { color: c.muted }]} numberOfLines={3}>
-                    📄{"\n"}
-                    {p.name}
-                  </Text>
-                ) : (
-                  <Image source={{ uri: p.uri }} style={styles.thumbImage} />
-                )}
-                <Pressable
-                  accessibilityLabel={`Remove page ${i + 1}`}
-                  onPress={() => setDraft({ pages: pages.filter((x) => x.uri !== p.uri), question })}
-                  style={[styles.remove, { backgroundColor: c.text }]}
-                  hitSlop={8}
-                >
-                  <Text style={{ color: c.bg, fontWeight: "700" }}>✕</Text>
-                </Pressable>
-              </View>
-            ))}
-          </View>
-        )}
-        <Body muted style={styles.small}>
-          {pages.length} of {MAX_PAGES} pages added
-        </Body>
-      </Card>
-
-      <Card>
-        <Heading>2. Anything specific? (optional)</Heading>
-        <TextInput
-          value={question}
-          onChangeText={(q) => setDraft({ pages, question: q })}
-          maxLength={500}
-          multiline
-          placeholder="e.g. Do we have to pay this?"
-          placeholderTextColor={c.muted}
-          style={[styles.input, { color: c.text, borderColor: c.border, backgroundColor: c.bg }]}
-        />
-      </Card>
-
-      <Button
-        title={busy === "explaining" ? "Reading your paperwork…" : "Explain this"}
-        onPress={submit}
-        disabled={!!busy}
-      />
-      {busy === "explaining" && (
-        <View style={styles.waiting}>
-          <ActivityIndicator color={c.accent} />
-          <Body muted style={styles.small}>
-            This can take up to a minute.
+      {empty && (
+        <Card>
+          <Heading>Welcome 👋</Heading>
+          <Body muted>
+            Keep track of someone's care in one place: explain confusing paperwork, set medicine reminders, and keep
+            appointments and to-dos on a calendar. Everything stays on this phone.
           </Body>
-        </View>
+        </Card>
       )}
-      {!!error && <Text style={[styles.error, { color: c.error }]}>{error}</Text>}
 
-      <Body muted style={[styles.small, styles.footer]}>
-        Your pages are sent securely to be read and are not kept on our server. This app explains paperwork; it is not
-        medical, legal, or financial advice. In an emergency, call 911.
-      </Body>
+      <View style={styles.actions}>
+        <Button title="📄  Explain paperwork" onPress={() => router.push("/explain")} />
+        <View style={styles.row2}>
+          <View style={styles.flex}>
+            <Button title="💊 Add medicine" variant="secondary" onPress={() => router.navigate("/medicines")} />
+          </View>
+          <View style={styles.flex}>
+            <Button title="📅 Add visit" variant="secondary" onPress={() => router.push(`/appt/new?date=${today}`)} />
+          </View>
+        </View>
+      </View>
+
+      {todaysDoses.length > 0 && (
+        <Card>
+          <Heading>Today's medicines</Heading>
+          <Body muted style={styles.sub}>
+            {taken} of {todaysDoses.length} doses taken
+          </Body>
+          {todaysDoses.map((d, i) => (
+            <DoseRow key={`${d.med.id}@${d.time}`} dose={d} day={today} late={missed.has(d)} divider={i > 0} />
+          ))}
+        </Card>
+      )}
+
+      {upcomingAppts.length > 0 && (
+        <Card>
+          <Heading>Visits this week</Heading>
+          {upcomingAppts.map((a, i) => (
+            <AppointmentRow key={a.id} appt={a} showDate divider={i > 0} />
+          ))}
+        </Card>
+      )}
+
+      {dueSoon.length > 0 && (
+        <Card urgent={dueSoon.some((t) => (daysUntil(t.step.due_date) ?? 1) < 0)}>
+          <Heading>To-dos due soon</Heading>
+          {dueSoon.map((t, i) => (
+            <StepRow
+              key={`${t.doc.id}-${t.index}`}
+              step={t.step}
+              done={t.done}
+              onToggle={() => toggleStep(t.doc.id, t.index)}
+              source={t.doc.title}
+              divider={i > 0}
+            />
+          ))}
+        </Card>
+      )}
+
+      {openTodos.length > dueSoon.length && (
+        <Button
+          title={`See all ${openTodos.length} open to-dos`}
+          variant="secondary"
+          onPress={() => router.push("/todos")}
+        />
+      )}
+
+      {!empty && todaysDoses.length === 0 && upcomingAppts.length === 0 && dueSoon.length === 0 && (
+        <Card>
+          <Heading>Nothing scheduled today</Heading>
+          <Body muted>Medicines with set times, visits this week, and to-dos due soon show up here.</Body>
+        </Card>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { padding: 16, paddingBottom: 48 },
-  intro: { marginBottom: 16 },
-  gap: { gap: 10 },
-  spinner: { marginTop: 12 },
-  pages: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 },
-  thumb: { width: 92, height: 120, borderWidth: 1, borderRadius: 10, overflow: "hidden", justifyContent: "center" },
-  thumbImage: { width: "100%", height: "100%" },
-  pdf: { fontSize: 12, textAlign: "center", padding: 6 },
-  remove: { position: "absolute", top: 4, right: 4, width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  small: { fontSize: 13, marginTop: 10 },
-  input: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 16, minHeight: 64, textAlignVertical: "top" },
-  waiting: { alignItems: "center", marginTop: 12 },
-  error: { marginTop: 12, fontSize: 15 },
-  footer: { textAlign: "center", marginTop: 28 },
+  date: { fontSize: 15, fontWeight: "600", marginBottom: 12 },
+  actions: { gap: 10, marginBottom: 16 },
+  row2: { flexDirection: "row", gap: 10 },
+  flex: { flex: 1 },
+  sub: { fontSize: 14, marginTop: -4 },
 });

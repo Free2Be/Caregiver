@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { File } from "expo-file-system";
 import * as Crypto from "expo-crypto";
 import { Platform } from "react-native";
-import type { ExplainResult, Page } from "./types";
+import type { ExplainResult, MedLabel, Page } from "./types";
 
 // Set these when building: see mobile/README.md.
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000").replace(/\/$/, "");
@@ -39,11 +39,7 @@ async function appendPage(form: FormData, page: Page) {
   }
 }
 
-export async function explain(pages: Page[], question: string): Promise<ExplainResult> {
-  const form = new FormData();
-  for (const page of pages) await appendPage(form, page);
-  form.append("question", question);
-
+async function post<T>(path: string, form: FormData): Promise<T> {
   // Android refuses to send a header containing emoji, curly quotes and the like,
   // which looks like a connection failure. Say so plainly instead.
   if (!/^[\x21-\x7e]*$/.test(APP_KEY)) {
@@ -52,7 +48,7 @@ export async function explain(pages: Page[], question: string): Promise<ExplainR
 
   let res: Response;
   try {
-    res = await fetch(`${API_URL}/api/explain`, {
+    res = await fetch(`${API_URL}${path}`, {
       method: "POST",
       body: form,
       headers: { "x-device-id": await deviceId(), ...(APP_KEY ? { "x-app-key": APP_KEY } : {}) },
@@ -71,12 +67,30 @@ export async function explain(pages: Page[], question: string): Promise<ExplainR
     throw new Error("Those pages are too large to send. Try fewer pages, or photos instead of a PDF.");
   }
 
-  let data: { error?: string } & Partial<ExplainResult>;
+  let data: { error?: string } & Partial<T>;
   try {
     data = await res.json();
   } catch {
     throw new Error("Something went wrong. Please try again.");
   }
-  if (!res.ok || !data.explanation) throw new Error(data.error || "Something went wrong. Please try again.");
+  if (!res.ok) throw new Error(data.error || "Something went wrong. Please try again.");
+  return data as T;
+}
+
+export async function explain(pages: Page[], question: string): Promise<ExplainResult> {
+  const form = new FormData();
+  for (const page of pages) await appendPage(form, page);
+  form.append("question", question);
+  const data = await post<Partial<ExplainResult>>("/api/explain", form);
+  if (!data.explanation) throw new Error("Something went wrong. Please try again.");
   return { explanation: data.explanation, demo: data.demo };
+}
+
+// Reads a photo of a prescription label or pill bottle.
+export async function readLabel(pages: Page[]): Promise<{ label: MedLabel; demo?: boolean }> {
+  const form = new FormData();
+  for (const page of pages) await appendPage(form, page);
+  const data = await post<{ label?: MedLabel; demo?: boolean }>("/api/medication", form);
+  if (!data.label) throw new Error("Something went wrong. Please try again.");
+  return { label: data.label, demo: data.demo };
 }

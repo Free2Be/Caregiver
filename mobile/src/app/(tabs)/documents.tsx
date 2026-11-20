@@ -6,7 +6,7 @@ import { useStore } from "@/lib/store";
 import { useColors } from "@/lib/theme";
 import { Body, Button, Card, Heading } from "@/lib/ui";
 
-export default function Saved() {
+export default function Documents() {
   const c = useColors();
   const { docs, loaded } = useStore();
 
@@ -17,7 +17,7 @@ export default function Saved() {
           <Heading>Nothing saved yet</Heading>
           <Body muted>Every document you explain is saved here, on this phone, so you can come back to it.</Body>
         </Card>
-        <Button title="Explain a document" onPress={() => router.navigate("/")} />
+        <Button title="📄  Explain paperwork" onPress={() => router.push("/explain")} />
       </View>
     );
   }
@@ -27,6 +27,11 @@ export default function Saved() {
       data={docs}
       keyExtractor={(d) => d.id}
       contentContainerStyle={styles.screen}
+      ListHeaderComponent={
+        <View style={styles.top}>
+          <Button title="📄  Explain new paperwork" onPress={() => router.push("/explain")} />
+        </View>
+      }
       renderItem={({ item }) => {
         const open = item.explanation.next_steps.length - item.done.length;
         return (
@@ -60,6 +65,7 @@ export default function Saved() {
 
 const styles = StyleSheet.create({
   screen: { padding: 16, paddingBottom: 48 },
+  top: { marginBottom: 16 },
   item: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 14, padding: 16, marginBottom: 12 },
   flex: { flex: 1 },
   title: { fontSize: 17, fontWeight: "700" },

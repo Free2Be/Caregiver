@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { ColorValue } from "react-native";
 import { Tabs } from "expo-router/tabs";
+import type { ColorValue } from "react-native";
+import { dosesForDay, missedDoses } from "@/lib/agenda";
+import { todayKey } from "@/lib/dates";
 import { useStore } from "@/lib/store";
 import { useColors } from "@/lib/theme";
 
@@ -12,8 +14,9 @@ function icon(name: IconName) {
 
 export default function TabsLayout() {
   const c = useColors();
-  const { docs } = useStore();
-  const openTodos = docs.reduce((n, d) => n + d.explanation.next_steps.length - d.done.length, 0);
+  const { meds, doses } = useStore();
+  // Badge on Today: doses whose time has passed without being marked.
+  const missed = missedDoses(dosesForDay(meds, doses, todayKey())).length;
 
   return (
     <Tabs
@@ -26,20 +29,17 @@ export default function TabsLayout() {
         tabBarActiveTintColor: c.accent,
         tabBarInactiveTintColor: c.muted,
         tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
+        tabBarBadgeStyle: { backgroundColor: c.urgentBorder, color: "#1F2A2E" },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Explain", headerTitle: "Paperwork Explainer", tabBarIcon: icon("camera-outline") }} />
-      <Tabs.Screen name="saved" options={{ title: "Saved", tabBarIcon: icon("folder-open-outline") }} />
       <Tabs.Screen
-        name="todos"
-        options={{
-          title: "To-dos",
-          tabBarIcon: icon("checkbox-outline"),
-          tabBarBadge: openTodos > 0 ? openTodos : undefined,
-          tabBarBadgeStyle: { backgroundColor: c.accent, color: c.accentText },
-        }}
+        name="index"
+        options={{ title: "Today", tabBarIcon: icon("sunny-outline"), tabBarBadge: missed > 0 ? missed : undefined }}
       />
-      <Tabs.Screen name="about" options={{ title: "About", tabBarIcon: icon("information-circle-outline") }} />
+      <Tabs.Screen name="documents" options={{ title: "Documents", tabBarIcon: icon("document-text-outline") }} />
+      <Tabs.Screen name="medicines" options={{ title: "Medicines", tabBarIcon: icon("medkit-outline") }} />
+      <Tabs.Screen name="calendar" options={{ title: "Calendar", tabBarIcon: icon("calendar-outline") }} />
+      <Tabs.Screen name="more" options={{ title: "More", tabBarIcon: icon("ellipsis-horizontal-circle-outline") }} />
     </Tabs>
   );
 }

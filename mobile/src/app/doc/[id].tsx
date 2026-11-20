@@ -3,7 +3,8 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Alert, Platform, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { StepRow } from "@/components/StepRow";
-import { formatSaved } from "@/lib/dates";
+import { defaultTimes, formatDay, formatSaved } from "@/lib/dates";
+import { formatTime } from "@/lib/reminders";
 import { useStore } from "@/lib/store";
 import { useColors } from "@/lib/theme";
 import type { Explanation } from "@/lib/types";
@@ -26,10 +27,29 @@ function asText(x: Explanation): string {
   return lines.join("\n");
 }
 
+const CHANGE_LABEL = {
+  new: "NEW",
+  changed: "CHANGED",
+  stopped: "STOP TAKING",
+  continue: "KEEP TAKING",
+  unclear: "MENTIONED",
+} as const;
+
+// "twice daily" -> 2, so the form can suggest usual times. The person confirms them.
+function guessTimesPerDay(text: string): number {
+  const t = text.toLowerCase();
+  if (/as needed|prn/.test(t)) return 0;
+  if (/four times|4 times|qid/.test(t)) return 4;
+  if (/three times|3 times|tid/.test(t)) return 3;
+  if (/twice|two times|2 times|bid|every 12 hours/.test(t)) return 2;
+  if (/once|daily|every day|each day|qd|bedtime/.test(t)) return 1;
+  return 0;
+}
+
 export default function DocScreen() {
   const c = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { docs, loaded, toggleStep, removeDoc } = useStore();
+  const { docs, meds, appts, loaded, toggleStep, removeDoc } = useStore();
   const [copied, setCopied] = useState(false);
   const doc = docs.find((d) => d.id === id);
 
@@ -38,7 +58,7 @@ export default function DocScreen() {
       <View style={styles.screen}>
         <Body>{loaded ? "This explanation was deleted." : "Loading…"}</Body>
         <View style={styles.space} />
-        <Button title="Go to Saved" onPress={() => router.navigate("/saved")} />
+        <Button title="Go to Documents" onPress={() => router.navigate("/documents")} />
       </View>
     );
   }
@@ -94,6 +114,93 @@ export default function DocScreen() {
         </Card>
       )}
 
+      {(x.medications?.length ?? 0) > 0 && (
+        <Card>
+          <Heading>Medicines mentioned</Heading>
+          <Body muted style={styles.small}>
+            Copied from the paperwork. Check with the care team if anything is unclear.
+          </Body>
+          {x.medications!.map((m, i) => {
+            const onList = meds.find((med) => med.name.toLowerCase().includes(m.name.toLowerCase().split(" ")[0]));
+            return (
+              <View key={i} style={[styles.item, i > 0 && { borderTopWidth: 1, borderTopColor: c.border }]}>
+                <Text style={[styles.change, { color: m.change === "stopped" ? c.error : c.accent }]}>
+                  {CHANGE_LABEL[m.change]}
+                </Text>
+                <Body style={styles.bold}>
+                  {m.name} {m.dose}
+                </Body>
+                {!!m.instructions && <Body muted>{m.instructions}</Body>}
+                {m.change === "stopped" ? (
+                  onList ? (
+                    <Button title={`Update ${onList.name} on my list`} variant="secondary" onPress={() => router.push(`/med/${onList.id}`)} />
+                  ) : null
+                ) : onList ? (
+                  <Body muted style={styles.small}>✓ On your medicine list</Body>
+                ) : (
+                  <Button
+                    title="+ Add to my medicines"
+                    variant="secondary"
+                    onPress={() =>
+                      router.push({
+                        pathname: "/med/[id]",
+                        params: {
+                          id: "new",
+                          prefill: JSON.stringify({
+                            name: m.name,
+                            dose: m.dose,
+                            instructions: m.instructions,
+                            times: defaultTimes(guessTimesPerDay(m.instructions), /bedtime/i.test(m.instructions)),
+                            source: "paperwork",
+                          }),
+                        },
+                      })
+                    }
+                  />
+                )}
+              </View>
+            );
+          })}
+        </Card>
+      )}
+
+      {(x.appointments?.length ?? 0) > 0 && (
+        <Card>
+          <Heading>Appointments</Heading>
+          {x.appointments!.map((a, i) => {
+            const added = appts.find((ap) => ap.title === a.title && (!a.date || ap.date === a.date));
+            return (
+              <View key={i} style={[styles.item, i > 0 && { borderTopWidth: 1, borderTopColor: c.border }]}>
+                <Body style={styles.bold}>{a.title}</Body>
+                <Body muted>
+                  {[a.date ? formatDay(a.date) : "Date not set yet", a.time && formatTime(a.time), a.location]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </Body>
+                {!!a.notes && <Body muted>{a.notes}</Body>}
+                {added ? (
+                  <Body muted style={styles.small}>✓ On your calendar</Body>
+                ) : (
+                  <Button
+                    title={a.date ? "+ Add to my calendar" : "+ Add once it's booked"}
+                    variant="secondary"
+                    onPress={() =>
+                      router.push({
+                        pathname: "/appt/[id]",
+                        params: {
+                          id: "new",
+                          prefill: JSON.stringify({ title: a.title, date: a.date, time: a.time, location: a.location, notes: a.notes }),
+                        },
+                      })
+                    }
+                  />
+                )}
+              </View>
+            );
+          })}
+        </Card>
+      )}
+
       {!!x.costs_and_coverage && (
         <Card>
           <Heading>Costs and coverage</Heading>
@@ -144,7 +251,7 @@ export default function DocScreen() {
 
       <View style={styles.gap}>
         <Button title="Share with family" onPress={() => Share.share({ message: asText(x) })} />
-        <Button title="Explain another document" variant="secondary" onPress={() => router.navigate("/")} />
+        <Button title="Explain another document" variant="secondary" onPress={() => router.push("/explain")} />
         <Button title="Delete" variant="secondary" onPress={confirmDelete} />
       </View>
 
@@ -164,6 +271,8 @@ const styles = StyleSheet.create({
   bold: { fontWeight: "700" },
   bullet: { marginBottom: 6 },
   term: { paddingVertical: 8 },
+  item: { paddingVertical: 12, gap: 4 },
+  change: { fontSize: 12, fontWeight: "800", letterSpacing: 0.5 },
   letter: { fontFamily: "monospace", fontSize: 14, lineHeight: 20, borderWidth: 1, borderRadius: 10, padding: 12, marginVertical: 10 },
   gap: { gap: 10, marginTop: 4 },
   footer: { textAlign: "center", marginTop: 28 },

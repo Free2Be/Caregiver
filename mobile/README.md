@@ -4,21 +4,35 @@ An Expo (React Native) app. It talks to the server in `../backend`, which holds 
 
 ## What's in the app
 
-- **Explain tab**
-  - Add pages: take photos, choose photos, or choose a PDF, up to 5 pages. Photos are shrunk to JPEG on the phone before upload.
-  - Ask an optional question.
-  - Pages you've added and your question are kept if you leave the app.
+Bottom tabs: **Today · Documents · Medicines · Calendar · More**.
+
+- **Today**
+  - Today's medicine doses with **Taken** / **Skip** buttons. Doses past their time are flagged, and the tab shows a badge.
+  - Visits this week and to-dos due soon.
+  - Quick buttons to explain paperwork, add a medicine, or add a visit.
+- **Documents**
+  - **Explain new paperwork**: photos (shrunk on the phone) or a PDF, up to 5 pages, plus an optional question.
+  - Every explanation is saved on the phone. Pages in progress are kept if you leave the app.
 - **Explanation screen**
-  - Summary and "Don't miss this" warning.
-  - Tickable to-do list with due dates and **Add to calendar**, which opens the phone's calendar with the event filled in.
-  - Costs, doctor questions, and plain-English terms.
-  - Draft appeal letter with a copy button.
-  - **Share with family**.
-  - Delete.
-- **Saved tab:** every explanation, saved automatically on the phone only.
-- **To-dos tab:** every to-do from every document, soonest due date first, with a badge showing how many are open.
-- **About tab:** privacy, a medical disclaimer, and **Delete everything**.
-- **Look:** follows the phone's light or dark mode.
+  - Summary, warnings, and a tickable to-do list with due dates.
+  - Costs, doctor questions, plain-English terms, and an appeal letter.
+  - **Medicines mentioned**, labelled new, changed, stop, or keep taking, with **Add to my medicines**.
+  - **Appointments**, with **Add to my calendar**.
+  - Share with family, or delete.
+- **Medicines**
+  - **Scan a label**: the server reads the pharmacy label and fills in the form to check.
+  - Or type a medicine in yourself.
+  - Dose times with a daily **reminder notification**.
+  - "As needed" medicines, label warnings, and "No longer taking".
+- **Calendar**
+  - Month view with dots for visits and to-dos due, and the chosen day's list.
+  - **Add a visit**, with reminders the evening before and 2 hours before.
+- **More**
+  - All to-dos, privacy, a medical disclaimer, and **Delete everything**.
+
+**Storage:** everything is stored only on the phone, with no account. Only photos sent to be read go to the server, and the server doesn't keep them.
+
+**Not built:** the app doesn't check drug interactions or suggest doses.
 
 ## Try it on your Android phone
 

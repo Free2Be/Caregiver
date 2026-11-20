@@ -29,7 +29,7 @@ export default function Todos() {
           <Heading>No to-dos yet</Heading>
           <Body muted>When you explain a document, its next steps show up here, with due dates you can add to your calendar.</Body>
         </Card>
-        <Button title="Explain a document" onPress={() => router.navigate("/")} />
+        <Button title="Explain paperwork" onPress={() => router.push("/explain")} />
       </View>
     );
   }
